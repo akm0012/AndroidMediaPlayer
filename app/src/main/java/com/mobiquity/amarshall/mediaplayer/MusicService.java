@@ -75,6 +75,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
             Song newSong2 = new Song(this, R.raw.something_elated);
             add_song_to_queue(newSong);
             add_song_to_queue(newSong2);
+            mCurrentSong = newSong;
             //-----
 
 //            Song cheap = new Song(this, R.raw.something_elated);
@@ -90,6 +91,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
         mIsPrepared = true;
         if (mPlayer != null) {
+            mPlayer.seekTo(Integer.parseInt(mCurrentSong.getmDuration()) - 10000);
             mPlayer.start();
         }
     }
@@ -171,6 +173,8 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     public void play() {
 
+        Log.i("tag", "Resource: " + mSongQueue.get(mCurrentSongIndex).getAudioResource());
+
         try {
             mPlayer.setDataSource(this, Uri.parse(mSongQueue.get(mCurrentSongIndex).getAudioResource())); // Initialized
         } catch (IOException e) {
@@ -183,6 +187,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         if (mPlayer != null && !mIsPrepared) {
             mPlayer.prepareAsync(); // Calls onPrepared
         } else if (mPlayer != null) {
+            mPlayer.seekTo(Integer.parseInt(mCurrentSong.getmDuration()) - 1000);
             mPlayer.start();
         }
     }
@@ -191,11 +196,18 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     public void onCompletion(MediaPlayer mp) {
         Log.i("tag", "Song completion");
 
+        mCurrentSongIndex++;
+
         if (mCurrentSongIndex < mSongQueue.size()) {
-            mCurrentSongIndex++;
             mCurrentSong = mSongQueue.get(mCurrentSongIndex);
+            Log.i("tag", "Current Song Index: " + mCurrentSongIndex);
+            mCurrentSong.view_song_in_log();
+
+            mPlayer.stop();
+            mPlayer.reset();
+            mIsPrepared = false;
+
             play();
         }
-
     }
 }

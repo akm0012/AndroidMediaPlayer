@@ -70,6 +70,7 @@ public class MainActivity extends Activity implements ServiceConnection {
             Log.i("tag", "Play button pushed.");
 
             //Note: Start service then Bind so music will resume_song after UI is closed
+            //Note: Activity should tell the Service to send a broadcast when the activity starts up so it can get a current status
             if (!mBound) {
 
                 Intent startIntent = new Intent(v.getContext(), MusicService.class);
