@@ -105,7 +105,7 @@ public class MainActivity extends Activity implements ServiceConnection {
             Log.i("tag", "Next button pushed.");
 
             if (mBound) {
-//                mMusicService.pause();
+                mMusicService.skip_to_next_song();
             }
 
         }

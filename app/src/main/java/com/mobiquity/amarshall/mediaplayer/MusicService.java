@@ -13,6 +13,7 @@ import com.mobiquity.amarshall.mediaplayer.objects.Song;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Random;
 
 /**
  * Created by amarshall on 7/28/15.
@@ -29,6 +30,10 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     private int mCurrentSongIndex;
     private ArrayList<Song> mSongQueue;
 
+    private boolean mIsShuffled = true;
+    private boolean mIsTrackRepeating = false;
+
+    private ArrayList<Integer> mRandomList;
 
     public class MusicServiceBinder extends Binder {
 
@@ -70,11 +75,15 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
             mCurrentSongIndex = 0;
             mCurrentSong = null;
 
+            mRandomList = new ArrayList<>();
+
             // Remove code eventually, should assume the mSongQueue and mCurrentSongIndex are correct
             Song newSong = new Song(this, R.raw.feet_tall);
             Song newSong2 = new Song(this, R.raw.something_elated);
+            Song newSong3 = new Song(this, R.raw.hey_jude);
             add_song_to_queue(newSong);
             add_song_to_queue(newSong2);
+            add_song_to_queue(newSong3);
             mCurrentSong = newSong;
             //-----
 
@@ -159,12 +168,15 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     public void resume_song() {
         if (mPlayer != null && !mPlayer.isPlaying()) {
-            mPlayer.start();
+            if (mIsPrepared) {
+                mPlayer.start();
+            }
         }
     }
 
     public void skip_to_next_song() {
-
+        //TODO: If user has repeat song on they may not want to keep repeating when skip is pressed
+        onCompletion(mPlayer);
     }
 
     public void add_song_to_queue(Song _song) {
@@ -173,7 +185,8 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     public void play() {
 
-        Log.i("tag", "Resource: " + mSongQueue.get(mCurrentSongIndex).getAudioResource());
+//        Log.i("tag", "Resource: " + mSongQueue.get(mCurrentSongIndex).getAudioResource());
+        Log.i("tag", "Playing song: " + mSongQueue.get(mCurrentSongIndex).getTrackName());
 
         try {
             mPlayer.setDataSource(this, Uri.parse(mSongQueue.get(mCurrentSongIndex).getAudioResource())); // Initialized
@@ -192,22 +205,93 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         }
     }
 
-    @Override
-    public void onCompletion(MediaPlayer mp) {
-        Log.i("tag", "Song completion");
+    public void reset_random() {
+        mRandomList = new ArrayList<>();
+    }
 
-        mCurrentSongIndex++;
+    /**
+     * @return Boolean indicating if there is a song that has not yet been played.
+     */
+    private boolean get_shuffled_song() {
 
-        if (mCurrentSongIndex < mSongQueue.size()) {
-            mCurrentSong = mSongQueue.get(mCurrentSongIndex);
-            Log.i("tag", "Current Song Index: " + mCurrentSongIndex);
-            mCurrentSong.view_song_in_log();
+        // We have played through all the songs in the Queue
+        if (mRandomList.size() == mSongQueue.size()) {
+
+            Log.i("tag", "We have played through all the songs in the queue.");
 
             mPlayer.stop();
             mPlayer.reset();
             mIsPrepared = false;
 
-            play();
+            return false;
         }
+
+        int random_index = -1;
+
+        do {
+
+            Random rand = new Random();
+            rand.setSeed(System.currentTimeMillis());
+            random_index = rand.nextInt(mSongQueue.size());
+            Log.d("tag", "In Loop Index: " + random_index);
+
+        } while (mRandomList.contains(random_index));
+
+        mRandomList.add(random_index);
+
+        mCurrentSongIndex = random_index;
+        mCurrentSong = mSongQueue.get(mCurrentSongIndex);
+
+
+        Log.i("tag", "Random song Index picked: " + mCurrentSongIndex);
+        Log.i("tag", "Random song picked: " + mCurrentSong.getTrackName());
+
+        return true;
+
     }
+
+    @Override
+    public void onCompletion(MediaPlayer mp) {
+        Log.i("tag", "Song completion");
+
+        if (mIsTrackRepeating) {
+
+            //Note: Left blank. Do not increment the current track index
+
+        } else if (mIsShuffled) {
+
+            if (!get_shuffled_song()) {
+                return;
+            }
+
+
+        } else {
+            mCurrentSongIndex++;
+
+            if (mCurrentSongIndex < mSongQueue.size()) {
+                mCurrentSong = mSongQueue.get(mCurrentSongIndex);
+                Log.i("tag", "Current Song Index: " + mCurrentSongIndex);
+                mCurrentSong.view_song_in_log();
+            } else {
+
+                // Reset the Queue Index
+                mCurrentSongIndex = 0;
+                mCurrentSong = mSongQueue.get(mCurrentSongIndex);
+
+                mPlayer.stop();
+                mPlayer.reset();
+                mIsPrepared = false;
+//Question: Why is onCompletion being called  after I am done with the play list and then press Play again?
+                return; // Do not play the next song
+            }
+        }
+
+        mPlayer.stop();
+        mPlayer.reset();
+        mIsPrepared = false;
+
+        play();
+    }
+
 }
+
